@@ -1,0 +1,25 @@
+__pycache__/
+*.py[cod]
+.Python
+*.log
+
+# Virtualenvs
+.venv/
+venv/
+env/
+
+# Local env files
+.env
+.env.*
+
+# Google/Firebase secrets (DO NOT COMMIT)
+credenciales.json
+*client_secret*.json
+token.json
+
+# OS/editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+

@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel Administrativo - Charat</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        .modal-active { display: flex !important; }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #f1f1f1; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        .active-link { background-color: #2563eb; color: white; }
+        
+        @keyframes spin-slow { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        .spin-slow { animation: spin-slow 2s linear infinite; }
+    </style>
+</head>
+<body class="bg-slate-50 font-sans text-slate-900 flex h-screen overflow-hidden">
+
+    <!-- BARRA LATERAL (SIDEBAR) -->
+    <aside class="w-64 bg-slate-900 text-white flex flex-col shadow-2xl z-50">
+        <div class="p-6 border-b border-slate-800 flex items-center gap-3">
+            <div class="bg-blue-600 p-2 rounded-lg">
+                <i class="fas fa-user-shield text-sm"></i>
+            </div>
+            <div>
+                <h1 class="font-black text-lg tracking-tighter leading-none">MuniCharat</h1>
+                <p class="text-[9px] uppercase font-bold text-slate-500 tracking-widest mt-1">Panel Administrativo</p>
+            </div>
+        </div>
+        
+        <nav class="flex-1 p-4 space-y-2 mt-4">
+            <button onclick="cambiarSeccion('incidencias', this)" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-slate-800 transition-all font-bold text-xs uppercase tracking-widest active-link">
+                <i class="fas fa-list-ul w-5"></i> Incidencias
+            </button>
+            
+            {% if session.rol == 'admin' %}
+            <button onclick="cambiarSeccion('territorio', this)" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-slate-800 transition-all font-bold text-xs uppercase tracking-widest">
+                <i class="fas fa-map-marked-alt w-5"></i> Territorio
+            </button>
+            <button onclick="cambiarSeccion('usuarios', this)" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-slate-800 transition-all font-bold text-xs uppercase tracking-widest">
+                <i class="fas fa-users-cog w-5"></i> Usuarios
+            </button>
+            <!-- NUEVO BOTÓN DE CONFIGURACIÓN -->
+            <button onclick="cambiarSeccion('config', this)" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-slate-800 transition-all font-bold text-xs uppercase tracking-widest">
+                <i class="fas fa-cogs w-5"></i> Configuración
+            </button>
+            {% endif %}
+        </nav>
+
+        <div class="p-4 border-t border-slate-800">
+            <div class="mb-4 px-4">
+                <p class="text-[10px] text-slate-400 font-mono italic">@{{ session.user }}</p>
+                <span class="text-[8px] px-2 py-0.5 rounded-full font-black uppercase tracking-tighter {% if session.rol == 'admin' %} bg-blue-500/20 text-blue-400 {% else %} bg-slate-700 text-slate-400 {% endif %}">
+                    {{ session.rol }}
+                </span>
+            </div>
+            <a href="/logout" class="flex items-center justify-center gap-2 w-full bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white py-3 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all">
+                <i class="fas fa-sign-out-alt"></i> Cerrar Sesión
+            </a>
+        </div>
+    </aside>
+
+    <!-- CONTENIDO PRINCIPAL -->
+    <main class="flex-1 overflow-y-auto custom-scrollbar p-8">
+
+        <!-- SECCIÓN 1: INCIDENCIAS -->
+        <section id="sec-incidencias" class="content-section">
+            <div class="flex justify-between items-center mb-10">
+                <div>
+                    <h2 class="text-4xl font-black text-slate-800 tracking-tight">Incidencias <span class="text-blue-600 font-black italic underline decoration-blue-200">Reales</span></h2>
+                    <p class="text-slate-500 text-sm mt-1">Gestión de reportes municipales.</p>
+                </div>
+                <div class="bg-white px-8 py-5 rounded-[2rem] shadow-sm border border-slate-200 flex items-center gap-4">
+                    <div class="text-right">
+                        <p class="text-slate-400 text-[10px] uppercase font-black tracking-widest leading-none mb-1">Total</p>
+                        <p class="font-black text-3xl text-slate-800 leading-none">{{ reportes|length }}</p>
+                    </div>
+                    <i class="fas fa-database text-slate-200 text-3xl"></i>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-[2.5rem] shadow-2xl shadow-slate-200/50 overflow-hidden border border-slate-200">
+                <table class="w-full text-left border-collapse">
+                    <thead class="bg-slate-50 border-b border-slate-200 text-slate-400 uppercase text-[9px] font-black tracking-[0.2em]">
+                        <tr>
+                            <th class="px-8 py-6">Fecha</th>
+                            <th class="px-8 py-6">Informante</th>
+                            <th class="px-8 py-6">Ubicación</th>
+                            <th class="px-8 py-6">Evidencia</th>
+                            <th class="px-8 py-6 text-center">Estado</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100">
+                        {% for r in reportes %}
+                        <tr class="hover:bg-slate-50/50 transition-colors">
+                            <td class="px-8 py-6">
+                                <p class="text-slate-800 font-bold text-sm">
+                                    {% if r.gestion.fecha_registro.strftime %}
+                                        {{ r.gestion.fecha_registro.strftime('%d/%m/%Y') }}
+                                    {% else %}
+                                        {{ r.gestion.fecha_registro }}
+                                    {% endif %}
+                                </p>
+                                <p class="text-[10px] text-slate-400 font-mono">
+                                    {% if r.gestion.fecha_registro.strftime %}
+                                        {{ r.gestion.fecha_registro.strftime('%H:%M') }}
+                                    {% endif %}
+                                </p>
+                            </td>
+                            <td class="px-8 py-6">
+                                <p class="font-black text-slate-800 text-xs uppercase">{{ r.informante.nombre }}</p>
+                                <p class="text-[10px] text-slate-500 font-bold italic">DNI {{ r.informante.dni }}</p>
+                            </td>
+                            <td class="px-8 py-6">
+                                <p class="font-black text-slate-700 text-xs italic mb-2">{{ r.ubicacion.caserio }}</p>
+                                {% if r.ubicacion.lat %}
+                                <a href="https://www.google.com/maps?q={{ r.ubicacion.lat }},{{ r.ubicacion.lng }}" target="_blank" class="text-[9px] font-black text-blue-600 bg-blue-50 px-3 py-1 rounded-full">VER GPS</a>
+                                {% endif %}
+                            </td>
+                            <td class="px-8 py-6">
+                                <div class="flex flex-col gap-2">
+                                    <div class="flex flex-wrap gap-2">
+                                        {% if r.detalle.fotos %}
+                                            {% for url in r.detalle.fotos %}
+                                            <img src="{{ url }}" onclick="ampliarImagen(this.src)" class="w-12 h-12 object-cover rounded-lg border-2 border-white shadow-sm cursor-pointer hover:scale-110 transition-transform">
+                                            {% endfor %}
+                                        {% elif r.detalle.foto_data %}
+                                            <img src="data:image/jpeg;base64,{{ r.detalle.foto_data }}" onclick="ampliarImagen(this.src)" class="w-12 h-12 object-cover rounded-lg border-2 border-white shadow-sm cursor-pointer hover:scale-110 transition-transform">
+                                        {% else %}
+                                            <div class="w-12 h-12 bg-slate-100 rounded-lg flex items-center justify-center text-slate-300">
+                                                <i class="fas fa-image"></i>
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                    <div>
+                                        <span class="text-[8px] font-black text-white bg-slate-800 px-2 py-0.5 rounded uppercase mb-1 inline-block">{{ r.detalle.categoria }}</span>
+                                        <p class="text-[10px] text-slate-500 italic max-w-[150px] truncate">"{{ r.detalle.descripcion }}"</p>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="px-8 py-6 text-center">
+                                <div class="flex flex-col items-center gap-3">
+                                    <span class="px-4 py-1 rounded-xl text-[9px] font-black uppercase tracking-widest border
+                                        {% if r.gestion.estado == 'Pendiente' %} bg-yellow-50 text-yellow-600 border-yellow-100
+                                        {% elif r.gestion.estado == 'En Proceso' %} bg-blue-50 text-blue-600 border-blue-100
+                                        {% elif r.gestion.estado == 'Atendido' %} bg-green-50 text-green-600 border-green-100
+                                        {% endif %} shadow-sm">
+                                        {{ r.gestion.estado }}
+                                    </span>
+                                    <div class="flex bg-slate-100 p-1 rounded-xl gap-1 shadow-inner">
+                                        <a href="/cambiar_estado/{{ r.id }}/En Proceso" class="group relative p-2 text-slate-400 hover:text-blue-600 hover:bg-white rounded-lg transition-all">
+                                            <i class="fas fa-spinner fa-xs group-hover:spin-slow"></i>
+                                            <span class="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-slate-800 text-white text-[8px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">Procesar</span>
+                                        </a>
+                                        <a href="/cambiar_estado/{{ r.id }}/Atendido" class="group relative p-2 text-slate-400 hover:text-green-600 hover:bg-white rounded-lg transition-all">
+                                            <i class="fas fa-check-double fa-xs"></i>
+                                            <span class="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-slate-800 text-white text-[8px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">Finalizar</span>
+                                        </a>
+                                        <a href="/cambiar_estado/{{ r.id }}/Pendiente" class="group relative p-2 text-slate-400 hover:text-yellow-600 hover:bg-white rounded-lg transition-all">
+                                            <i class="fas fa-undo fa-xs"></i>
+                                            <span class="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-slate-800 text-white text-[8px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">Revertir</span>
+                                        </a>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        {% if session.rol == 'admin' %}
+        <!-- SECCIÓN 2: GESTIÓN DE TERRITORIO -->
+        <section id="sec-territorio" class="content-section hidden">
+            <h2 class="text-4xl font-black text-slate-800 tracking-tight mb-8">Gestión de <span class="text-blue-600">Territorio</span></h2>
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <div class="lg:col-span-2 bg-white p-8 rounded-[2.5rem] shadow-xl border border-slate-200">
+                    <form action="/agregar_sector" method="POST" class="space-y-6">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <label class="block text-[10px] font-black text-slate-400 uppercase mb-2">Nombre del Lugar</label>
+                                <input type="text" name="nuevo_sector" required placeholder="Ej. Huayobamba" class="w-full px-5 py-3 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-blue-500 outline-none transition font-bold text-sm">
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-black text-slate-400 uppercase mb-2">Categoría Territorial</label>
+                                <select name="tipo_sector" class="w-full px-5 py-3 bg-slate-50 border-2 border-slate-100 rounded-2xl outline-none font-bold text-sm cursor-pointer">
+                                    <option value="Centro Poblado">Centro Poblado</option>
+                                    <option value="Caserío">Caserío</option>
+                                    <option value="Sector">Sector Urbano</option>
+                                </select>
+                            </div>
+                        </div>
+                        <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-black py-4 rounded-2xl shadow-lg transition-all uppercase tracking-widest text-xs">Guardar Nuevo Sector</button>
+                    </form>
+                </div>
+                <div class="bg-slate-900 p-8 rounded-[2.5rem] shadow-xl text-white">
+                    <h4 class="text-xs font-black uppercase tracking-widest text-blue-400 mb-6 flex justify-between">Sectores Activos <span>{{ sectores|length }}</span></h4>
+                    <div class="max-h-[300px] overflow-y-auto custom-scrollbar space-y-4 pr-2">
+                        {% for s in sectores %}
+                        <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+                            <div>
+                                <p class="text-sm font-bold">{{ s.nombre }}</p>
+                                <p class="text-[9px] text-slate-500 uppercase font-black">{{ s.tipo }}</p>
+                            </div>
+                            <a href="/eliminar_sector/{{ s.id }}" class="text-slate-600 hover:text-red-500 transition-colors"><i class="fas fa-trash-alt fa-xs"></i></a>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- SECCIÓN 3: USUARIOS -->
+        <section id="sec-usuarios" class="content-section hidden">
+            <h2 class="text-4xl font-black text-slate-800 tracking-tight mb-8">Usuarios <span class="text-blue-600">Municipales</span></h2>
+            <div class="bg-slate-900 rounded-[2.5rem] p-10 text-white shadow-2xl mb-8">
+                <form action="/crear_usuario" method="POST" class="grid grid-cols-1 md:grid-cols-4 gap-4 bg-slate-800 p-6 rounded-3xl border border-slate-700">
+                    <input type="text" name="nuevo_usuario" placeholder="Usuario" required class="bg-slate-700 border-none rounded-xl px-5 py-3 text-sm outline-none text-white">
+                    <input type="password" name="nueva_password" placeholder="Contraseña" required class="bg-slate-700 border-none rounded-xl px-5 py-3 text-sm outline-none text-white">
+                    <select name="rol" class="bg-slate-700 border-none rounded-xl px-5 py-3 text-sm outline-none text-white appearance-none">
+                        <option value="admin">Administrador</option>
+                        <option value="operador">Operador</option>
+                    </select>
+                    <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-black py-3 rounded-xl transition-all uppercase tracking-widest text-xs">Crear Cuenta</button>
+                </form>
+            </div>
+            
+            <div class="bg-white rounded-[2.5rem] shadow-xl border border-slate-200 overflow-hidden">
+                <table class="w-full text-left">
+                    <thead class="bg-slate-50 text-slate-400 uppercase text-[9px] font-black tracking-widest">
+                        <tr>
+                            <th class="px-8 py-4">Usuario</th>
+                            <th class="px-8 py-4">Rol</th>
+                            <th class="px-8 py-4">Estado</th>
+                            <th class="px-8 py-4 text-center">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100">
+                        {% for u in usuarios %}
+                        <tr>
+                            <td class="px-8 py-4 font-bold text-slate-700 text-sm">{{ u.usuario }}</td>
+                            <td class="px-8 py-4">
+                                <span class="text-[10px] font-black uppercase px-2 py-1 rounded-lg {% if u.rol == 'admin' %} bg-blue-100 text-blue-600 {% else %} bg-slate-100 text-slate-600 {% endif %}">
+                                    {{ u.rol }}
+                                </span>
+                            </td>
+                            <td class="px-8 py-4 text-green-500 text-[10px] font-bold uppercase tracking-widest">Activo</td>
+                            <td class="px-8 py-4 text-center">
+                                {% if u.usuario != session.user %}
+                                <a href="/eliminar_usuario/{{ u.id }}" 
+                                   onclick="return confirm('¿Seguro que deseas eliminar esta cuenta permanentemente?')"
+                                   class="text-slate-400 hover:text-red-500 transition-all p-2">
+                                    <i class="fas fa-trash-alt"></i>
+                                </a>
+                                {% else %}
+                                <span class="text-[9px] text-slate-300 italic">Tu cuenta</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- SECCIÓN 4: CONFIGURACIÓN GLOBAL (Gmail API) -->
+        <section id="sec-config" class="content-section hidden">
+            <h2 class="text-4xl font-black text-slate-800 tracking-tight mb-8">Configuración del <span class="text-blue-600">Sistema</span></h2>
+            <div class="max-w-2xl bg-white p-8 rounded-[2.5rem] shadow-xl border border-slate-200">
+                <h3 class="text-sm font-black uppercase tracking-widest text-slate-400 mb-6">Notificaciones Automáticas (Gmail API)</h3>
+                <form action="/guardar_config_correo" method="POST" class="space-y-6">
+                    <div>
+                        <label class="block text-[10px] font-black text-slate-500 uppercase mb-2">Correo de Recepción de Alertas</label>
+                        <input type="email" name="correo_receptor" required value="{{ config.correo_receptor if config else '' }}" placeholder="admin@gmail.com" 
+                               class="w-full px-5 py-3 bg-slate-50 border-2 border-slate-100 rounded-2xl outline-none focus:border-blue-500 font-bold text-sm">
+                    </div>
+                    <div class="text-[10px] text-slate-400 leading-relaxed">
+                        El envío se realiza con Gmail API. Configura las credenciales en variables de entorno del servidor (Render).
+                    </div>
+                    <button type="submit" class="w-full bg-slate-900 hover:bg-black text-white font-black py-4 rounded-2xl shadow-lg transition-all uppercase tracking-widest text-xs">
+                        <i class="fas fa-save mr-2 text-blue-400"></i> Actualizar Credenciales
+                    </button>
+                </form>
+            </div>
+        </section>
+        {% endif %}
+
+    </main>
+
+    <div id="modalImagen" class="fixed inset-0 bg-slate-900/90 z-[100] hidden items-center justify-center p-4 backdrop-blur-sm" onclick="cerrarModal()">
+        <div class="relative max-w-4xl w-full flex justify-center">
+            <img id="imgFull" src="" class="max-w-full h-auto max-h-[85vh] object-contain rounded-2xl shadow-2xl border-4 border-white/10">
+        </div>
+    </div>
+
+    <script>
+        function ampliarImagen(src) {
+            const modal = document.getElementById('modalImagen');
+            const img = document.getElementById('imgFull');
+            img.src = src;
+            modal.classList.add('modal-active');
+        }
+
+        function cerrarModal() {
+            document.getElementById('modalImagen').classList.remove('modal-active');
+        }
+
+        function cambiarSeccion(seccionId, btn) {
+            const seccion = document.getElementById('sec-' + seccionId);
+            if (!seccion) return;
+            document.querySelectorAll('.content-section').forEach(sec => sec.classList.add('hidden'));
+            seccion.classList.remove('hidden');
+            document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active-link'));
+            btn.classList.add('active-link');
+        }
+    </script>
+</body>
+</html>

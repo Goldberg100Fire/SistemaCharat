@@ -1,0 +1,6 @@
+flask
+firebase-admin
+gunicorn
+Pillow
+google-api-python-client
+google-auth
