@@ -1,12 +1,13 @@
 import base64
 from email.message import EmailMessage
 import os
+from typing import Tuple, Any
 
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 
 
-def _get_gmail_service() -> tuple[object, str]:
+def _get_gmail_service() -> Tuple[Any, str]:
     """
     Returns (gmail_service, sender_email).
     Requires env vars:

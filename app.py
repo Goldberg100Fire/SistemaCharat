@@ -13,14 +13,30 @@ import threading # IMPORTANTE: Para el envío en segundo plano
 from gmail_api import send_email
 
 # 1. Configuración de Firebase (local: credenciales.json | Render: FIREBASE_CREDENTIALS_B64)
+def _decode_service_account_b64(b64: str) -> dict:
+    """Acepta base64 pegado desde el portapapeles (espacios/saltos de línea)."""
+    raw = "".join(b64.split())
+    pad = (-len(raw)) % 4
+    if pad:
+        raw += "=" * pad
+    decoded = base64.b64decode(raw)
+    return json.loads(decoded.decode("utf-8"))
+
+
 def _firebase_certificate():
     cred_path = "credenciales.json"
     if os.path.isfile(cred_path):
         return credentials.Certificate(cred_path)
     b64 = os.environ.get("FIREBASE_CREDENTIALS_B64")
     if b64:
-        data = json.loads(base64.b64decode(b64).decode("utf-8"))
-        return credentials.Certificate(data)
+        try:
+            data = _decode_service_account_b64(b64)
+            return credentials.Certificate(data)
+        except (json.JSONDecodeError, ValueError, UnicodeDecodeError) as e:
+            raise RuntimeError(
+                "Firebase: FIREBASE_CREDENTIALS_B64 no es un JSON válido en base64. "
+                "Vuelve a generarlo en PowerShell y pégalo en Render en una sola línea, sin comillas."
+            ) from e
     raise RuntimeError(
         "Firebase: crea credenciales.json en la raíz o define la variable de entorno FIREBASE_CREDENTIALS_B64."
     )
@@ -35,7 +51,14 @@ db = firestore.client()
 bucket = storage.bucket() 
 
 app = Flask(__name__)
-app.secret_key = "muni_charat_2026_secure_key" 
+app.secret_key = "muni_charat_2026_secure_key"
+
+
+@app.get("/health")
+def health():
+    """Para comprobar que el proceso responde (Render / balanceadores)."""
+    return "ok", 200
+
 
 def optimizar_imagen(archivo_foto):
     img = Image.open(archivo_foto)
