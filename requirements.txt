@@ -4,3 +4,6 @@ gunicorn
 Pillow
 google-api-python-client
 google-auth
+openpyxl
+reportlab
+werkzeug

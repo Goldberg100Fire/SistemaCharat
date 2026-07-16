@@ -1,102 +1,183 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    {% include 'partials/head.html' %}
     <title>Panel Administrativo - Charat</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
         .modal-active { display: flex !important; }
         .custom-scrollbar::-webkit-scrollbar { width: 6px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: #f1f1f1; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
-        .active-link { background-color: #2563eb; color: white; }
-        
+        .active-link {
+            background: linear-gradient(90deg, #15803D 0%, #16A34A 100%) !important;
+            color: white !important;
+            border-left: 3px solid #FACC15 !important;
+            box-shadow: 0 4px 12px rgba(22, 163, 74, 0.35);
+        }
+        .sidebar-charat { background: linear-gradient(180deg, #0f172a 0%, #1e3a5f 55%, #0f172a 100%); }
+        .nav-btn {
+            color: #cbd5e1;
+            border-left: 3px solid transparent;
+        }
+        .nav-btn:hover {
+            background: rgba(255, 255, 255, 0.08);
+            color: #fff;
+            border-left-color: #FACC15;
+        }
+        .nav-btn i { opacity: 0.85; }
+        .nav-btn.active-link i { opacity: 1; }
+        .chart-wrap-caserios { position: relative; width: 100%; min-height: 240px; max-height: 520px; overflow-y: auto; overflow-x: hidden; }
+        #mapaIncidencias { width: 100%; height: 100%; min-height: 420px; z-index: 1; }
+        .mapa-card { height: calc(100vh - 10.5rem); min-height: 420px; }
+        #sec-mapa .leaflet-container { height: 100% !important; width: 100% !important; border-radius: 0; }
+        .chart-wrap { position: relative; width: 100%; height: 240px; overflow: hidden; }
+        .chart-wrap-sm { position: relative; width: 100%; height: 200px; overflow: hidden; }
+        .chart-wrap-xs { position: relative; width: 100%; height: 180px; overflow: hidden; }
         @keyframes spin-slow { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
         .spin-slow { animation: spin-slow 2s linear infinite; }
     </style>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 </head>
 <body class="bg-slate-50 font-sans text-slate-900 flex h-screen overflow-hidden">
 
+    {% include 'partials/flash.html' %}
+
     <!-- BARRA LATERAL (SIDEBAR) -->
-    <aside class="w-64 bg-slate-900 text-white flex flex-col shadow-2xl z-50">
-        <div class="p-6 border-b border-slate-800 flex items-center gap-3">
-            <div class="bg-blue-600 p-2 rounded-lg">
-                <i class="fas fa-user-shield text-sm"></i>
-            </div>
-            <div>
-                <h1 class="font-black text-lg tracking-tighter leading-none">MuniCharat</h1>
-                <p class="text-[9px] uppercase font-bold text-slate-500 tracking-widest mt-1">Panel Administrativo</p>
-            </div>
+    <div id="sidebarOverlay" class="fixed inset-0 bg-slate-900/50 hidden z-40 lg:hidden" onclick="closeSidebar()"></div>
+    <aside id="sidebarAdmin" class="w-64 sidebar-charat text-white flex flex-col shadow-2xl z-50 fixed inset-y-0 left-0 transform -translate-x-full transition-transform duration-300 lg:static lg:inset-0 lg:translate-x-0">
+        <div class="charat-franja"></div>
+        <div class="p-4 border-b border-white/10 bg-white">
+            {% with clase_extra='inline-block w-full', img_clase='h-11 w-full object-contain' %}
+            {% include 'partials/logo_municipal.html' %}
+            {% endwith %}
+            <p class="text-[9px] uppercase font-bold text-charat-green tracking-widest mt-3 text-center">Panel Administrativo</p>
         </div>
         
-        <nav class="flex-1 p-4 space-y-2 mt-4">
-            <button onclick="cambiarSeccion('incidencias', this)" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-slate-800 transition-all font-bold text-xs uppercase tracking-widest active-link">
-                <i class="fas fa-list-ul w-5"></i> Incidencias
+        <nav class="flex-1 p-3 space-y-1 mt-2 overflow-y-auto custom-scrollbar">
+            <button onclick="cambiarSeccion('incidencias', this)" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-r-xl transition-all font-bold text-xs uppercase tracking-widest active-link">
+                <i class="fas fa-list-ul w-5 text-charat-yellow"></i> Incidencias
+            </button>
+            <button onclick="cambiarSeccion('estadisticas', this)" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-r-xl transition-all font-bold text-xs uppercase tracking-widest">
+                <i class="fas fa-chart-pie w-5 text-charat-blue-light"></i> Estadísticas
+            </button>
+            <button onclick="cambiarSeccion('mapa', this)" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-r-xl transition-all font-bold text-xs uppercase tracking-widest">
+                <i class="fas fa-map w-5 text-charat-orange"></i> Mapa
             </button>
             
             {% if session.rol == 'admin' %}
-            <button onclick="cambiarSeccion('territorio', this)" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-slate-800 transition-all font-bold text-xs uppercase tracking-widest">
-                <i class="fas fa-map-marked-alt w-5"></i> Territorio
+            <button onclick="cambiarSeccion('territorio', this)" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-r-xl transition-all font-bold text-xs uppercase tracking-widest">
+                <i class="fas fa-map-marked-alt w-5 text-charat-yellow"></i> Territorio
             </button>
-            <button onclick="cambiarSeccion('usuarios', this)" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-slate-800 transition-all font-bold text-xs uppercase tracking-widest">
-                <i class="fas fa-users-cog w-5"></i> Usuarios
+            <button onclick="cambiarSeccion('categorias', this)" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-r-xl transition-all font-bold text-xs uppercase tracking-widest">
+                <i class="fas fa-tags w-5 text-charat-green"></i> Categorías
             </button>
-            <!-- NUEVO BOTÓN DE CONFIGURACIÓN -->
-            <button onclick="cambiarSeccion('config', this)" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-slate-800 transition-all font-bold text-xs uppercase tracking-widest">
-                <i class="fas fa-cogs w-5"></i> Configuración
+            <button onclick="cambiarSeccion('usuarios', this)" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-r-xl transition-all font-bold text-xs uppercase tracking-widest">
+                <i class="fas fa-users-cog w-5 text-charat-blue-light"></i> Usuarios
+            </button>
+            <button onclick="cambiarSeccion('config', this)" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-r-xl transition-all font-bold text-xs uppercase tracking-widest">
+                <i class="fas fa-cogs w-5 text-slate-300"></i> Configuración
             </button>
             {% endif %}
         </nav>
 
-        <div class="p-4 border-t border-slate-800">
-            <div class="mb-4 px-4">
-                <p class="text-[10px] text-slate-400 font-mono italic">@{{ session.user }}</p>
-                <span class="text-[8px] px-2 py-0.5 rounded-full font-black uppercase tracking-tighter {% if session.rol == 'admin' %} bg-blue-500/20 text-blue-400 {% else %} bg-slate-700 text-slate-400 {% endif %}">
+        <div class="p-4 border-t border-white/10 bg-black/20">
+            <div class="mb-4 px-2">
+                <p class="text-[10px] text-slate-300 font-mono italic">@{{ session.user }}</p>
+                <span class="text-[8px] px-2 py-0.5 rounded-full font-black uppercase tracking-tighter {% if session.rol == 'admin' %} bg-charat-yellow/20 text-charat-yellow {% else %} bg-white/10 text-slate-300 {% endif %}">
                     {{ session.rol }}
                 </span>
             </div>
-            <a href="/logout" class="flex items-center justify-center gap-2 w-full bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white py-3 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all">
+            <a href="/logout" class="flex items-center justify-center gap-2 w-full bg-red-500/15 text-red-400 hover:bg-red-500 hover:text-white py-3 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all border border-red-500/20">
                 <i class="fas fa-sign-out-alt"></i> Cerrar Sesión
             </a>
         </div>
     </aside>
 
     <!-- CONTENIDO PRINCIPAL -->
-    <main class="flex-1 overflow-y-auto custom-scrollbar p-8">
+    <main class="flex-1 overflow-y-auto custom-scrollbar p-4 lg:p-8">
+        <div class="lg:hidden flex items-center justify-between gap-3 mb-4">
+            <button type="button" onclick="openSidebar()" class="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-900 text-white shadow-lg">
+                <i class="fas fa-bars"></i>
+                <span class="text-xs font-bold uppercase tracking-widest">Menú</span>
+            </button>
+            <p class="text-xs font-bold text-slate-600">Panel Administrativo</p>
+        </div>
 
         <!-- SECCIÓN 1: INCIDENCIAS -->
         <section id="sec-incidencias" class="content-section">
-            <div class="flex justify-between items-center mb-10">
+            <div class="flex flex-col lg:flex-row lg:justify-between lg:items-center gap-6 mb-8">
                 <div>
-                    <h2 class="text-4xl font-black text-slate-800 tracking-tight">Incidencias <span class="text-blue-600 font-black italic underline decoration-blue-200">Reales</span></h2>
-                    <p class="text-slate-500 text-sm mt-1">Gestión de reportes municipales.</p>
+                    <h2 class="text-4xl font-black text-slate-800 tracking-tight">Incidencias <span class="text-charat-blue">Registradas</span></h2>
+                    <p class="text-slate-500 text-sm mt-1">Seguimiento y gestión de reportes ciudadanos.</p>
                 </div>
-                <div class="bg-white px-8 py-5 rounded-[2rem] shadow-sm border border-slate-200 flex items-center gap-4">
-                    <div class="text-right">
-                        <p class="text-slate-400 text-[10px] uppercase font-black tracking-widest leading-none mb-1">Total</p>
-                        <p class="font-black text-3xl text-slate-800 leading-none">{{ reportes|length }}</p>
+                <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                    <div class="bg-white px-5 py-4 rounded-2xl shadow-sm border border-slate-200">
+                        <p class="text-[9px] uppercase font-black tracking-widest text-slate-400">Total</p>
+                        <p class="text-2xl font-black text-slate-800">{{ stats.total }}</p>
                     </div>
-                    <i class="fas fa-database text-slate-200 text-3xl"></i>
+                    <div class="bg-yellow-50 px-5 py-4 rounded-2xl border border-yellow-100">
+                        <p class="text-[9px] uppercase font-black tracking-widest text-yellow-600">Pendientes</p>
+                        <p class="text-2xl font-black text-yellow-700">{{ stats.pendiente }}</p>
+                    </div>
+                    <div class="bg-blue-50 px-5 py-4 rounded-2xl border border-blue-100">
+                        <p class="text-[9px] uppercase font-black tracking-widest text-charat-blue">En proceso</p>
+                        <p class="text-2xl font-black text-charat-blue">{{ stats.en_proceso }}</p>
+                    </div>
+                    <div class="bg-green-50 px-5 py-4 rounded-2xl border border-green-100">
+                        <p class="text-[9px] uppercase font-black tracking-widest text-charat-green">Atendidas</p>
+                        <p class="text-2xl font-black text-green-700">{{ stats.atendido }}</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex flex-wrap gap-2 mb-6 items-center justify-between">
+                <div class="flex flex-wrap gap-2">
+                <button type="button" onclick="filtrarEstado('todos', this)" class="filtro-btn px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest bg-charat-blue text-white">Todos</button>
+                <button type="button" onclick="filtrarEstado('Pendiente', this)" class="filtro-btn px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest bg-white text-slate-500 border border-slate-200">Pendientes</button>
+                <button type="button" onclick="filtrarEstado('En Proceso', this)" class="filtro-btn px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest bg-white text-slate-500 border border-slate-200">En proceso</button>
+                <button type="button" onclick="filtrarEstado('Atendido', this)" class="filtro-btn px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest bg-white text-slate-500 border border-slate-200">Atendidas</button>
+                </div>
+                <div class="flex flex-wrap gap-2">
+                    <form id="formExport" class="flex flex-wrap gap-2 items-center" method="GET">
+                        <select name="estado" class="text-[10px] font-bold border border-slate-200 rounded-xl px-3 py-2 bg-white">
+                            <option value="todos">Todos los estados</option>
+                            <option value="Pendiente">Pendientes</option>
+                            <option value="En Proceso">En proceso</option>
+                            <option value="Atendido">Atendidas</option>
+                        </select>
+                        <select name="caserio" class="text-[10px] font-bold border border-slate-200 rounded-xl px-3 py-2 bg-white">
+                            <option value="">Todos los sectores</option>
+                            {% for s in sectores %}<option value="{{ s.nombre }}">{{ s.nombre }}</option>{% endfor %}
+                        </select>
+                    </form>
+                    <button type="button" onclick="exportar('excel')" class="px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest bg-charat-green text-white hover:bg-charat-green-dark"><i class="fas fa-file-excel mr-1"></i> Excel</button>
+                    <button type="button" onclick="exportar('pdf')" class="px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest bg-red-600 text-white hover:bg-red-700"><i class="fas fa-file-pdf mr-1"></i> PDF</button>
                 </div>
             </div>
 
             <div class="bg-white rounded-[2.5rem] shadow-2xl shadow-slate-200/50 overflow-hidden border border-slate-200">
-                <table class="w-full text-left border-collapse">
+                {% if reportes %}
+                <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse min-w-[900px]">
                     <thead class="bg-slate-50 border-b border-slate-200 text-slate-400 uppercase text-[9px] font-black tracking-[0.2em]">
                         <tr>
-                            <th class="px-8 py-6">Fecha</th>
-                            <th class="px-8 py-6">Informante</th>
-                            <th class="px-8 py-6">Ubicación</th>
-                            <th class="px-8 py-6">Evidencia</th>
-                            <th class="px-8 py-6 text-center">Estado</th>
+                            <th class="px-6 py-5">Folio</th>
+                            <th class="px-6 py-5">Fecha</th>
+                            <th class="px-6 py-5">Informante</th>
+                            <th class="px-6 py-5">Ubicación</th>
+                            <th class="px-6 py-5">Evidencia</th>
+                            <th class="px-6 py-5 text-center">Estado</th>
+                            <th class="px-6 py-5 text-center">Detalle</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-100">
                         {% for r in reportes %}
-                        <tr class="hover:bg-slate-50/50 transition-colors">
-                            <td class="px-8 py-6">
+                        <tr class="fila-incidencia hover:bg-slate-50/50 transition-colors" data-estado="{{ r.gestion.estado }}">
+                            <td class="px-6 py-5">
+                                <p class="text-[10px] font-black text-charat-blue bg-blue-50 px-2 py-1 rounded-lg inline-block font-mono">{{ r.gestion.folio or '—' }}</p>
+                            </td>
+                            <td class="px-6 py-5">
                                 <p class="text-slate-800 font-bold text-sm">
                                     {% if r.gestion.fecha_registro.strftime %}
                                         {{ r.gestion.fecha_registro.strftime('%d/%m/%Y') }}
@@ -117,7 +198,7 @@
                             <td class="px-8 py-6">
                                 <p class="font-black text-slate-700 text-xs italic mb-2">{{ r.ubicacion.caserio }}</p>
                                 {% if r.ubicacion.lat %}
-                                <a href="https://www.google.com/maps?q={{ r.ubicacion.lat }},{{ r.ubicacion.lng }}" target="_blank" class="text-[9px] font-black text-blue-600 bg-blue-50 px-3 py-1 rounded-full">VER GPS</a>
+                                <a href="https://www.google.com/maps?q={{ r.ubicacion.lat }},{{ r.ubicacion.lng }}" target="_blank" class="text-[9px] font-black text-charat-blue bg-blue-50 px-3 py-1 rounded-full">VER GPS</a>
                                 {% endif %}
                             </td>
                             <td class="px-8 py-6">
@@ -145,13 +226,13 @@
                                 <div class="flex flex-col items-center gap-3">
                                     <span class="px-4 py-1 rounded-xl text-[9px] font-black uppercase tracking-widest border
                                         {% if r.gestion.estado == 'Pendiente' %} bg-yellow-50 text-yellow-600 border-yellow-100
-                                        {% elif r.gestion.estado == 'En Proceso' %} bg-blue-50 text-blue-600 border-blue-100
+                                        {% elif r.gestion.estado == 'En Proceso' %} bg-blue-50 text-charat-blue border-blue-100
                                         {% elif r.gestion.estado == 'Atendido' %} bg-green-50 text-green-600 border-green-100
                                         {% endif %} shadow-sm">
                                         {{ r.gestion.estado }}
                                     </span>
                                     <div class="flex bg-slate-100 p-1 rounded-xl gap-1 shadow-inner">
-                                        <a href="/cambiar_estado/{{ r.id }}/En Proceso" class="group relative p-2 text-slate-400 hover:text-blue-600 hover:bg-white rounded-lg transition-all">
+                                        <a href="/cambiar_estado/{{ r.id }}/En Proceso" class="group relative p-2 text-slate-400 hover:text-charat-blue hover:bg-white rounded-lg transition-all">
                                             <i class="fas fa-spinner fa-xs group-hover:spin-slow"></i>
                                             <span class="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-slate-800 text-white text-[8px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">Procesar</span>
                                         </a>
@@ -166,24 +247,161 @@
                                     </div>
                                 </div>
                             </td>
+                            <td class="px-6 py-5 text-center">
+                                <button type="button" onclick="abrirDetalle('{{ r.id }}')" class="p-2 text-charat-blue hover:bg-blue-50 rounded-lg transition-all" title="Ver detalle">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                            </td>
                         </tr>
                         {% endfor %}
                     </tbody>
                 </table>
+                </div>
+                {% else %}
+                <div class="py-20 text-center">
+                    <i class="fas fa-inbox text-5xl text-slate-200 mb-4"></i>
+                    <p class="text-slate-500 font-bold">No hay incidencias registradas aún</p>
+                    <p class="text-slate-400 text-sm mt-1">Los reportes ciudadanos aparecerán aquí automáticamente.</p>
+                </div>
+                {% endif %}
+            </div>
+        </section>
+
+        <!-- SECCIÓN ESTADÍSTICAS -->
+        <section id="sec-estadisticas" class="content-section hidden">
+            <div class="mb-8">
+                <h2 class="text-4xl font-black text-slate-800 tracking-tight">Estadísticas <span class="text-charat-blue">Municipales</span></h2>
+                <p class="text-slate-500 text-sm mt-1">Indicadores de gestión y tendencias de reportes ciudadanos.</p>
+            </div>
+
+            <div class="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
+                <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+                    <p class="text-[9px] uppercase font-black text-slate-400 tracking-widest">Tasa de resolución</p>
+                    <p class="text-3xl font-black text-charat-green mt-1">{{ analytics.tasa_resolucion }}%</p>
+                </div>
+                <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+                    <p class="text-[9px] uppercase font-black text-slate-400 tracking-widest">Este mes</p>
+                    <p class="text-3xl font-black text-slate-800 mt-1">{{ analytics.mes_actual }}</p>
+                    {% if analytics.variacion_mes_pct is not none %}
+                    <p class="text-[10px] mt-1 font-bold {% if analytics.variacion_mes_pct >= 0 %}text-amber-600{% else %}text-charat-green{% endif %}">{{ '+' if analytics.variacion_mes_pct >= 0 else '' }}{{ analytics.variacion_mes_pct }}% vs mes anterior</p>
+                    {% endif %}
+                </div>
+                <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+                    <p class="text-[9px] uppercase font-black text-slate-400 tracking-widest">Proyección mes</p>
+                    <p class="text-3xl font-black text-violet-600 mt-1">{{ analytics.proyeccion_mes }}</p>
+                    <p class="text-[10px] mt-1 text-slate-400">estimado al cierre</p>
+                </div>
+                <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+                    <p class="text-[9px] uppercase font-black text-slate-400 tracking-widest">Reportes hoy</p>
+                    <p class="text-3xl font-black text-charat-green mt-1">{{ analytics.hoy }}</p>
+                </div>
+                <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm col-span-2 lg:col-span-1">
+                    <p class="text-[9px] uppercase font-black text-slate-400 tracking-widest">Tiempo promedio</p>
+                    <p class="text-3xl font-black text-slate-800 mt-1">{% if analytics.tiempo_promedio_dias %}{{ analytics.tiempo_promedio_dias }}d{% else %}—{% endif %}</p>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                <div class="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm">
+                    <h3 class="text-xs font-black uppercase tracking-widest text-slate-500 mb-4">Por tipo de problema</h3>
+                    <div class="chart-wrap"><canvas id="chartCategorias"></canvas></div>
+                </div>
+                <div class="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm">
+                    <h3 class="text-xs font-black uppercase tracking-widest text-slate-500 mb-4">Por caserío / sector</h3>
+                    <div id="chartWrapCaserios" class="chart-wrap-caserios"><canvas id="chartCaserios"></canvas></div>
+                </div>
+            </div>
+
+            <div class="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm mb-6">
+                <h3 class="text-xs font-black uppercase tracking-widest text-slate-500 mb-4">Tendencia últimos 7 días</h3>
+                <div class="chart-wrap-xs"><canvas id="chartTendencia"></canvas></div>
+            </div>
+
+            <div class="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm mb-6">
+                <h3 class="text-xs font-black uppercase tracking-widest text-slate-500 mb-4">Comparativo últimos 6 meses</h3>
+                <div class="chart-wrap-xs"><canvas id="chartMeses"></canvas></div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                <div class="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm">
+                    <h3 class="text-xs font-black uppercase tracking-widest text-slate-500 mb-4">Reportes por día de la semana</h3>
+                    <div class="chart-wrap-sm"><canvas id="chartDiaSemana"></canvas></div>
+                </div>
+                <div class="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm">
+                    <h3 class="text-xs font-black uppercase tracking-widest text-slate-500 mb-4">Distribución por hora del día</h3>
+                    <div class="chart-wrap-sm"><canvas id="chartHora"></canvas></div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                <div class="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm">
+                    <h3 class="text-xs font-black uppercase tracking-widest text-slate-500 mb-4">Ranking de operadores</h3>
+                    <div class="chart-wrap-sm"><canvas id="chartOperadores"></canvas></div>
+                </div>
+                <div class="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm overflow-hidden">
+                    <h3 class="text-xs font-black uppercase tracking-widest text-slate-500 mb-4">Cumplimiento SLA por categoría</h3>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-sm">
+                            <thead>
+                                <tr class="text-[10px] uppercase tracking-widest text-slate-400 border-b border-slate-100">
+                                    <th class="pb-3 pr-2">Categoría</th>
+                                    <th class="pb-3 pr-2">SLA</th>
+                                    <th class="pb-3 pr-2">Total</th>
+                                    <th class="pb-3 pr-2">Fuera plazo</th>
+                                    <th class="pb-3">Cumplimiento</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for s in analytics.sla_categorias %}
+                                <tr class="border-b border-slate-50 {% if s.alerta %}bg-red-50/50{% endif %}">
+                                    <td class="py-3 pr-2 font-semibold text-slate-800">{{ s.categoria }}</td>
+                                    <td class="py-3 pr-2 text-slate-500">{{ s.sla_dias }}d</td>
+                                    <td class="py-3 pr-2">{{ s.total }}</td>
+                                    <td class="py-3 pr-2 {% if s.fuera_plazo %}text-red-600 font-bold{% endif %}">{{ s.fuera_plazo }}</td>
+                                    <td class="py-3">{% if s.cumplimiento_pct is not none %}<span class="font-bold text-charat-green">{{ s.cumplimiento_pct }}%</span>{% else %}<span class="text-slate-400">—</span>{% endif %}</td>
+                                </tr>
+                                {% else %}
+                                <tr><td colspan="5" class="py-6 text-slate-400 text-center">Sin datos de SLA aún</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="bg-slate-900 text-white p-6 rounded-2xl">
+                    <p class="text-[10px] uppercase font-black text-slate-400">Con GPS</p>
+                    <p class="text-2xl font-black text-charat-green mt-2">{{ analytics.con_gps }} / {{ stats.total }}</p>
+                </div>
+                <div class="bg-green-50 border border-green-100 p-6 rounded-2xl">
+                    <p class="text-[10px] uppercase font-black text-green-700">Estado actual</p>
+                    <p class="text-sm text-green-900 mt-2 font-medium">{{ stats.pendiente }} pendientes · {{ stats.en_proceso }} en proceso · {{ stats.atendido }} atendidas</p>
+                </div>
+            </div>
+        </section>
+
+        <section id="sec-mapa" class="content-section hidden">
+            <div class="mb-3">
+                <h2 class="text-3xl font-black text-slate-800 tracking-tight">Mapa de <span class="text-charat-blue">Incidencias</span></h2>
+                <p class="text-slate-500 text-sm mt-1">Ubicación GPS ({{ mapa_puntos|length }} puntos).</p>
+            </div>
+            <div class="mapa-card bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden">
+                <div id="mapaIncidencias"></div>
             </div>
         </section>
 
         {% if session.rol == 'admin' %}
         <!-- SECCIÓN 2: GESTIÓN DE TERRITORIO -->
         <section id="sec-territorio" class="content-section hidden">
-            <h2 class="text-4xl font-black text-slate-800 tracking-tight mb-8">Gestión de <span class="text-blue-600">Territorio</span></h2>
+            <h2 class="text-4xl font-black text-slate-800 tracking-tight mb-8">Gestión de <span class="text-charat-blue">Territorio</span></h2>
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 <div class="lg:col-span-2 bg-white p-8 rounded-[2.5rem] shadow-xl border border-slate-200">
                     <form action="/agregar_sector" method="POST" class="space-y-6">
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div>
                                 <label class="block text-[10px] font-black text-slate-400 uppercase mb-2">Nombre del Lugar</label>
-                                <input type="text" name="nuevo_sector" required placeholder="Ej. Huayobamba" class="w-full px-5 py-3 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-blue-500 outline-none transition font-bold text-sm">
+                                <input type="text" name="nuevo_sector" required placeholder="Ej. Huayobamba" class="w-full px-5 py-3 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-charat-blue outline-none transition font-bold text-sm">
                             </div>
                             <div>
                                 <label class="block text-[10px] font-black text-slate-400 uppercase mb-2">Categoría Territorial</label>
@@ -194,11 +412,11 @@
                                 </select>
                             </div>
                         </div>
-                        <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-black py-4 rounded-2xl shadow-lg transition-all uppercase tracking-widest text-xs">Guardar Nuevo Sector</button>
+                        <button type="submit" class="w-full bg-charat-green hover:bg-charat-green-dark text-white font-black py-4 rounded-2xl shadow-lg transition-all uppercase tracking-widest text-xs">Guardar Nuevo Sector</button>
                     </form>
                 </div>
                 <div class="bg-slate-900 p-8 rounded-[2.5rem] shadow-xl text-white">
-                    <h4 class="text-xs font-black uppercase tracking-widest text-blue-400 mb-6 flex justify-between">Sectores Activos <span>{{ sectores|length }}</span></h4>
+                    <h4 class="text-xs font-black uppercase tracking-widest text-charat-blue-light mb-6 flex justify-between">Sectores Activos <span>{{ sectores|length }}</span></h4>
                     <div class="max-h-[300px] overflow-y-auto custom-scrollbar space-y-4 pr-2">
                         {% for s in sectores %}
                         <div class="flex items-center justify-between border-b border-slate-800 pb-2">
@@ -206,17 +424,48 @@
                                 <p class="text-sm font-bold">{{ s.nombre }}</p>
                                 <p class="text-[9px] text-slate-500 uppercase font-black">{{ s.tipo }}</p>
                             </div>
-                            <a href="/eliminar_sector/{{ s.id }}" class="text-slate-600 hover:text-red-500 transition-colors"><i class="fas fa-trash-alt fa-xs"></i></a>
+                            <a href="/eliminar_sector/{{ s.id }}" onclick="return confirm('¿Eliminar este sector?')" class="text-slate-600 hover:text-red-500 transition-colors"><i class="fas fa-trash-alt fa-xs"></i></a>
                         </div>
+                        {% else %}
+                        <p class="text-sm text-slate-500 italic">No hay sectores registrados.</p>
                         {% endfor %}
                     </div>
                 </div>
             </div>
         </section>
 
-        <!-- SECCIÓN 3: USUARIOS -->
+        <!-- SECCIÓN 3: TIPOS DE PROBLEMA -->
+        <section id="sec-categorias" class="content-section hidden">
+            <h2 class="text-4xl font-black text-slate-800 tracking-tight mb-8">Tipos de <span class="text-charat-blue">Problema</span></h2>
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <div class="lg:col-span-2 bg-white p-8 rounded-[2.5rem] shadow-xl border border-slate-200">
+                    <form action="/agregar_categoria" method="POST" class="space-y-6">
+                        <div>
+                            <label class="block text-[10px] font-black text-slate-400 uppercase mb-2">Nombre de la Categoría</label>
+                            <input type="text" name="nueva_categoria" required placeholder="Ej. Agua y Saneamiento" class="w-full px-5 py-3 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-charat-blue outline-none transition font-bold text-sm">
+                        </div>
+                        <button type="submit" class="w-full bg-charat-green hover:bg-charat-green-dark text-white font-black py-4 rounded-2xl shadow-lg transition-all uppercase tracking-widest text-xs">Guardar Nueva Categoría</button>
+                    </form>
+                </div>
+                <div class="bg-slate-900 p-8 rounded-[2.5rem] shadow-xl text-white">
+                    <h4 class="text-xs font-black uppercase tracking-widest text-charat-blue-light mb-6 flex justify-between">Categorías Activas <span>{{ categorias|length }}</span></h4>
+                    <div class="max-h-[300px] overflow-y-auto custom-scrollbar space-y-4 pr-2">
+                        {% for c in categorias %}
+                        <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+                            <p class="text-sm font-bold"><i class="fas {{ c.icono }} text-charat-blue-light mr-2"></i>{{ c.nombre }}</p>
+                            <a href="/eliminar_categoria/{{ c.id }}" onclick="return confirm('¿Eliminar esta categoría?')" class="text-slate-600 hover:text-red-500 transition-colors"><i class="fas fa-trash-alt fa-xs"></i></a>
+                        </div>
+                        {% else %}
+                        <p class="text-sm text-slate-500 italic">No hay categorías registradas.</p>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- SECCIÓN 4: USUARIOS -->
         <section id="sec-usuarios" class="content-section hidden">
-            <h2 class="text-4xl font-black text-slate-800 tracking-tight mb-8">Usuarios <span class="text-blue-600">Municipales</span></h2>
+            <h2 class="text-4xl font-black text-slate-800 tracking-tight mb-8">Usuarios <span class="text-charat-blue">Municipales</span></h2>
             <div class="bg-slate-900 rounded-[2.5rem] p-10 text-white shadow-2xl mb-8">
                 <form action="/crear_usuario" method="POST" class="grid grid-cols-1 md:grid-cols-4 gap-4 bg-slate-800 p-6 rounded-3xl border border-slate-700">
                     <input type="text" name="nuevo_usuario" placeholder="Usuario" required class="bg-slate-700 border-none rounded-xl px-5 py-3 text-sm outline-none text-white">
@@ -225,7 +474,7 @@
                         <option value="admin">Administrador</option>
                         <option value="operador">Operador</option>
                     </select>
-                    <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-black py-3 rounded-xl transition-all uppercase tracking-widest text-xs">Crear Cuenta</button>
+                    <button type="submit" class="bg-charat-green hover:bg-charat-green-dark text-white font-black py-3 rounded-xl transition-all uppercase tracking-widest text-xs">Crear Cuenta</button>
                 </form>
             </div>
             
@@ -244,7 +493,7 @@
                         <tr>
                             <td class="px-8 py-4 font-bold text-slate-700 text-sm">{{ u.usuario }}</td>
                             <td class="px-8 py-4">
-                                <span class="text-[10px] font-black uppercase px-2 py-1 rounded-lg {% if u.rol == 'admin' %} bg-blue-100 text-blue-600 {% else %} bg-slate-100 text-slate-600 {% endif %}">
+                                <span class="text-[10px] font-black uppercase px-2 py-1 rounded-lg {% if u.rol == 'admin' %} bg-blue-100 text-charat-blue {% else %} bg-slate-100 text-slate-600 {% endif %}">
                                     {{ u.rol }}
                                 </span>
                             </td>
@@ -269,20 +518,65 @@
 
         <!-- SECCIÓN 4: CONFIGURACIÓN GLOBAL (Gmail API) -->
         <section id="sec-config" class="content-section hidden">
-            <h2 class="text-4xl font-black text-slate-800 tracking-tight mb-8">Configuración del <span class="text-blue-600">Sistema</span></h2>
+            <h2 class="text-4xl font-black text-slate-800 tracking-tight mb-8">Configuración del <span class="text-charat-blue">Sistema</span></h2>
             <div class="max-w-2xl bg-white p-8 rounded-[2.5rem] shadow-xl border border-slate-200">
                 <h3 class="text-sm font-black uppercase tracking-widest text-slate-400 mb-6">Notificaciones Automáticas (Gmail API)</h3>
                 <form action="/guardar_config_correo" method="POST" class="space-y-6">
                     <div>
                         <label class="block text-[10px] font-black text-slate-500 uppercase mb-2">Correo de Recepción de Alertas</label>
                         <input type="email" name="correo_receptor" required value="{{ config.correo_receptor if config else '' }}" placeholder="admin@gmail.com" 
-                               class="w-full px-5 py-3 bg-slate-50 border-2 border-slate-100 rounded-2xl outline-none focus:border-blue-500 font-bold text-sm">
+                               class="w-full px-5 py-3 bg-slate-50 border-2 border-slate-100 rounded-2xl outline-none focus:border-charat-blue font-bold text-sm">
                     </div>
                     <div class="text-[10px] text-slate-400 leading-relaxed">
                         El envío se realiza con Gmail API. Configura las credenciales en variables de entorno del servidor (Render).
                     </div>
                     <button type="submit" class="w-full bg-slate-900 hover:bg-black text-white font-black py-4 rounded-2xl shadow-lg transition-all uppercase tracking-widest text-xs">
-                        <i class="fas fa-save mr-2 text-blue-400"></i> Actualizar Credenciales
+                        <i class="fas fa-save mr-2 text-charat-blue-light"></i> Actualizar Credenciales
+                    </button>
+                </form>
+            </div>
+
+            <div class="max-w-2xl mt-8 bg-red-50 p-8 rounded-[2.5rem] shadow-xl border-2 border-red-200">
+                <div class="flex items-start gap-4 mb-6">
+                    <div class="w-12 h-12 rounded-2xl bg-red-100 flex items-center justify-center shrink-0">
+                        <i class="fas fa-broom text-red-600 text-lg"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-lg font-black text-red-800">Limpiador de datos de prueba</h3>
+                        <p class="text-sm text-red-700/80 mt-1 leading-relaxed">
+                            Elimina todas las incidencias registradas y sus fotos en almacenamiento.
+                            Ideal para borrar datos de prueba antes de poner el sistema en producción.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3 mb-6">
+                    <div class="bg-white rounded-2xl border border-red-100 px-4 py-3 text-center">
+                        <p class="text-[10px] font-black uppercase text-slate-400">Incidencias actuales</p>
+                        <p class="text-2xl font-black text-red-700">{{ reportes|length }}</p>
+                    </div>
+                    <div class="bg-white rounded-2xl border border-red-100 px-4 py-3 text-center">
+                        <p class="text-[10px] font-black uppercase text-slate-400">Se conservan</p>
+                        <p class="text-xs font-bold text-slate-600 mt-2">Usuarios · Sectores · Categorías · Correo</p>
+                    </div>
+                </div>
+
+                <form action="/limpiar_datos_prueba" method="POST" class="space-y-4" onsubmit="return confirmarLimpieza()">
+                    <label class="flex items-start gap-3 cursor-pointer bg-white rounded-2xl border border-red-100 px-4 py-3">
+                        <input type="checkbox" name="acepto" id="aceptoLimpieza" class="mt-1 accent-red-600">
+                        <span class="text-xs text-red-800 leading-relaxed">
+                            Entiendo que esta acción es <strong>irreversible</strong> y eliminará todos los reportes y evidencias fotográficas.
+                        </span>
+                    </label>
+                    <div>
+                        <label class="block text-[10px] font-black text-red-700 uppercase mb-2">Escriba LIMPIAR para confirmar</label>
+                        <input type="text" name="confirmacion" id="confirmacionLimpieza" autocomplete="off"
+                               placeholder="LIMPIAR"
+                               class="w-full px-5 py-3 bg-white border-2 border-red-200 rounded-2xl outline-none focus:border-red-500 font-bold text-sm uppercase tracking-widest">
+                    </div>
+                    <button type="submit" id="btnLimpiarDatos" disabled
+                            class="w-full bg-red-600 hover:bg-red-700 disabled:bg-red-300 disabled:cursor-not-allowed text-white font-black py-4 rounded-2xl shadow-lg transition-all uppercase tracking-widest text-xs">
+                        <i class="fas fa-trash-alt mr-2"></i> Eliminar datos de prueba
                     </button>
                 </form>
             </div>
@@ -290,6 +584,68 @@
         {% endif %}
 
     </main>
+
+
+    {% for r in reportes %}
+    <template id="tpl-detalle-{{ r.id }}">
+        <div class="space-y-6">
+            <div class="flex justify-between items-start">
+                <div>
+                    <p class="text-[10px] uppercase font-black text-slate-400">Folio</p>
+                    <p class="font-mono font-black text-charat-blue">{{ r.gestion.folio or '—' }}</p>
+                </div>
+                <span class="px-3 py-1 rounded-lg text-[10px] font-black uppercase">{{ r.gestion.estado }}</span>
+            </div>
+            <div>
+                <p class="text-[10px] uppercase font-black text-slate-400 mb-1">Descripción completa</p>
+                <p class="text-sm text-slate-700">{{ r.detalle.descripcion }}</p>
+            </div>
+            <div>
+                <p class="text-[10px] uppercase font-black text-slate-400 mb-2">Historial de estados</p>
+                <div class="space-y-2 max-h-40 overflow-y-auto custom-scrollbar">
+                    {% for h in r.gestion.historial or [] %}
+                    <div class="flex items-center gap-3 text-xs bg-slate-50 rounded-xl px-3 py-2">
+                        <span class="font-bold text-slate-700">{{ h.estado }}</span>
+                        <span class="text-slate-400">{{ h.usuario }}</span>
+                        <span class="text-slate-400 ml-auto">{% if h.fecha.strftime %}{{ h.fecha.strftime('%d/%m/%Y %H:%M') }}{% endif %}</span>
+                    </div>
+                    {% else %}
+                    <p class="text-xs text-slate-400 italic">Sin historial registrado.</p>
+                    {% endfor %}
+                </div>
+            </div>
+            <div>
+                <p class="text-[10px] uppercase font-black text-slate-400 mb-2">Comentarios internos</p>
+                <div class="space-y-2 max-h-32 overflow-y-auto custom-scrollbar mb-3">
+                    {% for c in r.gestion.comentarios or [] %}
+                    <div class="bg-amber-50 border border-amber-100 rounded-xl px-3 py-2 text-xs">
+                        <p class="font-bold text-amber-900">{{ c.usuario }}</p>
+                        <p class="text-amber-800">{{ c.texto }}</p>
+                    </div>
+                    {% else %}
+                    <p class="text-xs text-slate-400 italic">Sin comentarios internos.</p>
+                    {% endfor %}
+                </div>
+                <form action="/agregar_comentario/{{ r.id }}" method="POST" class="flex gap-2">
+                    <input type="text" name="comentario" required placeholder="Agregar nota interna..." class="flex-1 text-sm border-2 border-slate-100 rounded-xl px-3 py-2 outline-none focus:border-charat-blue">
+                    <button type="submit" class="bg-charat-green text-white px-4 py-2 rounded-xl text-xs font-black uppercase">Guardar</button>
+                </form>
+            </div>
+        </div>
+    </template>
+    {% endfor %}
+
+    <div id="modalDetalle" class="fixed inset-0 bg-slate-900/80 z-[110] hidden items-center justify-center p-4 backdrop-blur-sm" onclick="if(event.target===this)cerrarDetalle()">
+        <div class="bg-white rounded-[2rem] shadow-2xl max-w-lg w-full max-h-[85vh] overflow-y-auto custom-scrollbar p-8" onclick="event.stopPropagation()">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-lg font-black text-slate-800">Detalle de incidencia</h3>
+                <button type="button" onclick="cerrarDetalle()" class="text-slate-400 hover:text-slate-700"><i class="fas fa-times"></i></button>
+            </div>
+            <div id="contenidoDetalle"></div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
 
     <div id="modalImagen" class="fixed inset-0 bg-slate-900/90 z-[100] hidden items-center justify-center p-4 backdrop-blur-sm" onclick="cerrarModal()">
         <div class="relative max-w-4xl w-full flex justify-center">
@@ -309,6 +665,32 @@
             document.getElementById('modalImagen').classList.remove('modal-active');
         }
 
+        function filtrarEstado(estado, btn) {
+            document.querySelectorAll('.fila-incidencia').forEach(fila => {
+                fila.style.display = (estado === 'todos' || fila.dataset.estado === estado) ? '' : 'none';
+            });
+            document.querySelectorAll('.filtro-btn').forEach(b => {
+                b.className = 'filtro-btn px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest bg-white text-slate-500 border border-slate-200';
+            });
+            btn.className = 'filtro-btn px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest bg-charat-blue text-white';
+        }
+
+        function openSidebar() {
+            const sb = document.getElementById('sidebarAdmin');
+            const overlay = document.getElementById('sidebarOverlay');
+            if (!sb) return;
+            sb.classList.remove('-translate-x-full');
+            overlay?.classList.remove('hidden');
+        }
+
+        function closeSidebar() {
+            const sb = document.getElementById('sidebarAdmin');
+            const overlay = document.getElementById('sidebarOverlay');
+            if (!sb) return;
+            sb.classList.add('-translate-x-full');
+            overlay?.classList.add('hidden');
+        }
+
         function cambiarSeccion(seccionId, btn) {
             const seccion = document.getElementById('sec-' + seccionId);
             if (!seccion) return;
@@ -316,7 +698,227 @@
             seccion.classList.remove('hidden');
             document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active-link'));
             btn.classList.add('active-link');
+            if (window.innerWidth < 1024) closeSidebar();
+            const main = document.querySelector('main');
+            if (main) main.scrollTop = 0;
         }
+
+        const MAPA_PUNTOS = {{ mapa_puntos | tojson }};
+        let mapaInstancia = null;
+
+        function exportar(tipo) {
+            const form = document.getElementById('formExport');
+            const params = new URLSearchParams(new FormData(form));
+            window.location.href = '/exportar/' + tipo + '?' + params.toString();
+        }
+
+        function abrirDetalle(id) {
+            const tpl = document.getElementById('tpl-detalle-' + id);
+            if (!tpl) return;
+            document.getElementById('contenidoDetalle').innerHTML = tpl.innerHTML;
+            document.getElementById('modalDetalle').classList.add('modal-active');
+        }
+
+        function cerrarDetalle() {
+            document.getElementById('modalDetalle').classList.remove('modal-active');
+        }
+
+        function initMapa() {
+            const ajustar = () => {
+                if (mapaInstancia) {
+                    mapaInstancia.invalidateSize(true);
+                    return;
+                }
+                mapaInstancia = L.map('mapaIncidencias').setView([-8.013, -77.848], 13);
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap' }).addTo(mapaInstancia);
+                const colores = { 'Pendiente': '#eab308', 'En Proceso': '#2563eb', 'Atendido': '#16a34a' };
+                MAPA_PUNTOS.forEach(p => {
+                    L.circleMarker([p.lat, p.lng], { radius: 8, color: colores[p.estado] || '#64748b', fillOpacity: 0.8 })
+                        .bindPopup('<b>' + p.folio + '</b><br>' + p.categoria + '<br>' + p.caserio + '<br><i>' + p.estado + '</i>')
+                        .addTo(mapaInstancia);
+                });
+                if (MAPA_PUNTOS.length) {
+                    const bounds = L.latLngBounds(MAPA_PUNTOS.map(p => [p.lat, p.lng]));
+                    mapaInstancia.fitBounds(bounds.pad(0.2));
+                }
+                setTimeout(() => mapaInstancia.invalidateSize(true), 50);
+            };
+            requestAnimationFrame(() => requestAnimationFrame(ajustar));
+        }
+
+const ANALYTICS = {{ analytics | tojson }};
+        let chartInstances = [];
+        let chartsInit = false;
+
+        const CHART_OPTS = {
+            responsive: true,
+            maintainAspectRatio: false,
+            animation: { duration: 400 },
+            plugins: { legend: { display: false } }
+        };
+
+        const PALETA_INSTITUCIONAL = [
+            '#16A34A', '#2563EB', '#FACC15', '#F97316', '#8B5CF6', '#EC4899',
+            '#06B6D4', '#84CC16', '#EF4444', '#14B8A6', '#6366F1', '#D946EF',
+            '#0EA5E9', '#EAB308', '#22C55E', '#3B82F6', '#FB923C', '#A855F7',
+            '#10B981', '#F59E0B', '#64748B', '#BE123C', '#0891B2', '#65A30D'
+        ];
+
+        function coloresPorCantidad(n) {
+            return Array.from({ length: n }, (_, i) => PALETA_INSTITUCIONAL[i % PALETA_INSTITUCIONAL.length]);
+        }
+
+        function destroyCharts() {
+            chartInstances.forEach(c => { try { c.destroy(); } catch (e) {} });
+            chartInstances = [];
+            chartsInit = false;
+        }
+
+        function addChart(canvasId, config) {
+            const el = document.getElementById(canvasId);
+            if (!el) return;
+            const chart = new Chart(el, config);
+            chartInstances.push(chart);
+        }
+
+        function initEstadisticas() {
+            if (chartsInit || typeof Chart === 'undefined') return;
+            const section = document.getElementById('sec-estadisticas');
+            if (!section || section.classList.contains('hidden')) return;
+
+            chartsInit = true;
+            const verde = '#16A34A';
+            const azul = '#2563EB';
+            const colores = PALETA_INSTITUCIONAL.slice(0, 8);
+            const escalaY = { beginAtZero: true, ticks: { stepSize: 1, precision: 0 } };
+
+            const cats = ANALYTICS.por_categoria || [];
+            const caserios = ANALYTICS.por_caserio || [];
+            const tendencia = ANALYTICS.ultimos_7_dias || [];
+            const meses = ANALYTICS.por_mes || [];
+            const dias = ANALYTICS.por_dia_semana || [];
+            const horasData = ANALYTICS.por_hora || [];
+            const ops = ANALYTICS.ranking_operadores || [];
+
+            addChart('chartCategorias', {
+                type: 'doughnut',
+                data: {
+                    labels: cats.length ? cats.map(x => x.nombre) : ['Sin datos'],
+                    datasets: [{ data: cats.length ? cats.map(x => x.total) : [1], backgroundColor: colores, borderWidth: 0 }]
+                },
+                options: {
+                    ...CHART_OPTS,
+                    plugins: { legend: { display: true, position: 'bottom', labels: { boxWidth: 12, font: { size: 10 } } } }
+                }
+            });
+
+            const nCas = caserios.length || 1;
+            const wrapCaserios = document.getElementById('chartWrapCaserios');
+            if (wrapCaserios) wrapCaserios.style.height = Math.min(520, Math.max(240, nCas * 34)) + 'px';
+
+            addChart('chartCaserios', {
+                type: 'bar',
+                data: {
+                    labels: caserios.length ? caserios.map(x => x.nombre) : ['Sin datos'],
+                    datasets: [{
+                        data: caserios.length ? caserios.map(x => x.total) : [0],
+                        backgroundColor: coloresPorCantidad(caserios.length || 1),
+                        borderRadius: 6,
+                        barThickness: 22
+                    }]
+                },
+                options: { ...CHART_OPTS, indexAxis: 'y', scales: { x: escalaY } }
+            });
+
+            addChart('chartTendencia', {
+                type: 'line',
+                data: {
+                    labels: tendencia.map(x => x.fecha),
+                    datasets: [{ data: tendencia.map(x => x.total), borderColor: verde, backgroundColor: 'rgba(22,163,74,0.12)', fill: true, tension: 0.35, pointRadius: 4 }]
+                },
+                options: { ...CHART_OPTS, scales: { y: escalaY } }
+            });
+
+            addChart('chartMeses', {
+                type: 'bar',
+                data: {
+                    labels: meses.map(x => x.mes),
+                    datasets: [{ data: meses.map(x => x.total), backgroundColor: azul, borderRadius: 6 }]
+                },
+                options: { ...CHART_OPTS, scales: { y: escalaY } }
+            });
+
+            addChart('chartDiaSemana', {
+                type: 'bar',
+                data: {
+                    labels: dias.map(x => x.dia),
+                    datasets: [{ data: dias.map(x => x.total), backgroundColor: verde, borderRadius: 6 }]
+                },
+                options: { ...CHART_OPTS, scales: { y: escalaY } }
+            });
+
+            const horas = horasData.map(x => x.total);
+            const maxH = Math.max(...horas, 1);
+            addChart('chartHora', {
+                type: 'bar',
+                data: {
+                    labels: horasData.map(x => x.hora),
+                    datasets: [{
+                        data: horas,
+                        backgroundColor: horas.map(v => `rgba(22,163,74,${0.25 + (v / maxH) * 0.75})`),
+                        borderRadius: 4,
+                        maxBarThickness: 18
+                    }]
+                },
+                options: {
+                    ...CHART_OPTS,
+                    scales: {
+                        y: escalaY,
+                        x: { ticks: { maxRotation: 0, autoSkip: true, maxTicksLimit: 12 } }
+                    }
+                }
+            });
+
+            addChart('chartOperadores', {
+                type: 'bar',
+                data: {
+                    labels: ops.length ? ops.map(x => '@' + x.usuario) : ['Sin datos'],
+                    datasets: [{ data: ops.length ? ops.map(x => x.acciones) : [0], backgroundColor: azul, borderRadius: 6 }]
+                },
+                options: { ...CHART_OPTS, indexAxis: 'y', scales: { x: escalaY } }
+            });
+        }
+
+        const _cambiarSeccionOrig2 = cambiarSeccion;
+        cambiarSeccion = function(seccionId, btn) {
+            _cambiarSeccionOrig2(seccionId, btn);
+            if (seccionId === 'mapa') setTimeout(initMapa, 80);
+            if (seccionId === 'estadisticas') {
+                destroyCharts();
+                setTimeout(initEstadisticas, 100);
+            }
+        };
+
+        function actualizarBtnLimpieza() {
+            const btn = document.getElementById('btnLimpiarDatos');
+            const acepto = document.getElementById('aceptoLimpieza');
+            const texto = document.getElementById('confirmacionLimpieza');
+            if (!btn || !acepto || !texto) return;
+            btn.disabled = !(acepto.checked && texto.value.trim().toUpperCase() === 'LIMPIAR');
+        }
+
+        function confirmarLimpieza() {
+            const total = {{ reportes|length }};
+            if (total === 0) {
+                alert('No hay incidencias para eliminar.');
+                return false;
+            }
+            return confirm(`¿Eliminar definitivamente ${total} incidencia(s) y todas sus fotos? Esta acción no se puede deshacer.`);
+        }
+
+        document.getElementById('aceptoLimpieza')?.addEventListener('change', actualizarBtnLimpieza);
+        document.getElementById('confirmacionLimpieza')?.addEventListener('input', actualizarBtnLimpieza);
+
     </script>
 </body>
 </html>

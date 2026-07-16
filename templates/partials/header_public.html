@@ -1,0 +1,20 @@
+<header class="bg-white shadow-sm">
+    <div class="charat-franja"></div>
+    <div class="container mx-auto px-3 sm:px-4 py-3 sm:py-4 border-b-4 border-charat-yellow">
+        <div class="flex flex-col sm:flex-row justify-between items-center gap-4">
+            <a href="/" class="w-full sm:w-auto flex justify-center sm:justify-start">
+                {% with clase_extra='inline-block w-full sm:w-auto max-w-[320px]', img_clase='h-14 sm:h-16 w-full object-contain' %}
+                {% include 'partials/logo_municipal.html' %}
+                {% endwith %}
+            </a>
+            <nav class="flex items-center gap-2 w-full sm:w-auto">
+                <a href="/consultar" class="flex-1 sm:flex-none text-center text-[10px] sm:text-xs bg-slate-100 hover:bg-charat-light text-slate-700 px-4 py-2.5 rounded-full transition-all border border-slate-200 font-bold uppercase tracking-widest">
+                    <i class="fas fa-search mr-1 text-charat-blue"></i> Consultar folio
+                </a>
+                <a href="/login" class="flex-1 sm:flex-none text-center text-[10px] sm:text-xs bg-charat-green hover:bg-charat-green-dark text-white px-4 py-2.5 rounded-full transition-all font-bold uppercase tracking-widest shadow-md">
+                    <i class="fas fa-user-lock mr-1"></i> Acceso interno
+                </a>
+            </nav>
+        </div>
+    </div>
+</header>

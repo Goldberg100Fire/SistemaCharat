@@ -1,0 +1,31 @@
+{% with messages = get_flashed_messages(with_categories=true) %}
+{% if messages %}
+<div id="toast-container" class="fixed top-4 right-4 z-[200] space-y-3 max-w-sm w-full pointer-events-none">
+    {% for category, message in messages %}
+    <div class="toast pointer-events-auto flex items-start gap-3 px-5 py-4 rounded-2xl shadow-2xl border backdrop-blur-sm animate-[slideIn_0.3s_ease-out]
+        {% if category == 'error' %} bg-red-50 border-red-200 text-red-800
+        {% elif category == 'warning' %} bg-amber-50 border-amber-200 text-amber-800
+        {% else %} bg-green-50 border-green-200 text-green-800 {% endif %}">
+        <i class="fas {% if category == 'error' %}fa-circle-xmark{% elif category == 'warning' %}fa-triangle-exclamation{% else %}fa-circle-check{% endif %} mt-0.5"></i>
+        <p class="text-sm font-semibold flex-1">{{ message }}</p>
+        <button type="button" onclick="this.closest('.toast').remove()" class="opacity-50 hover:opacity-100 transition-opacity">
+            <i class="fas fa-times text-xs"></i>
+        </button>
+    </div>
+    {% endfor %}
+</div>
+<style>
+    @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+</style>
+<script>
+    setTimeout(() => {
+        document.querySelectorAll('.toast').forEach(el => {
+            el.style.transition = 'opacity 0.4s, transform 0.4s';
+            el.style.opacity = '0';
+            el.style.transform = 'translateX(100%)';
+            setTimeout(() => el.remove(), 400);
+        });
+    }, 5000);
+</script>
+{% endif %}
+{% endwith %}

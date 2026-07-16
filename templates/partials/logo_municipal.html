@@ -1,0 +1,5 @@
+{# Logo sobre fondo blanco: el PNG tiene fondo negro y texto oscuro — necesita contraste claro #}
+<div class="logo-muni bg-white rounded-xl shadow-md border border-slate-200/80 px-4 py-3 {{ clase_extra|default('') }}">
+    <img src="{{ url_for('static', filename='img/logo_charat.png') }}" alt="Municipalidad Distrital de Charat"
+         class="{{ img_clase|default('h-12 sm:h-14 md:h-16 w-auto max-w-full object-contain mx-auto') }}">
+</div>

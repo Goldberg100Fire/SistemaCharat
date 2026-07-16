@@ -1,44 +1,44 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    {% include 'partials/head.html' %}
     <title>Acceso Administrativo - Charat</title>
-    <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="bg-slate-900 flex items-center justify-center h-screen">
-    <div class="bg-white p-10 rounded-3xl shadow-2xl w-full max-w-sm">
+<body class="bg-gradient-to-br from-blue-950 via-green-950 to-slate-900 flex items-center justify-center min-h-screen p-4">
+
+    <div class="bg-white p-10 rounded-[2rem] shadow-2xl w-full max-w-sm border border-slate-100 overflow-hidden">
+        <div class="charat-franja -mx-10 -mt-10 mb-8"></div>
         <div class="text-center mb-8">
-            <h1 class="text-2xl font-black text-slate-800">MuniCharat</h1>
-            <p class="text-slate-400 text-sm">Panel de Control de Incidencias</p>
+            {% with clase_extra='inline-block mx-auto max-w-[280px]', img_clase='h-14 w-full object-contain mx-auto' %}
+            {% include 'partials/logo_municipal.html' %}
+            {% endwith %}
+            <p class="text-slate-400 text-sm mt-4">Panel de control municipal</p>
         </div>
-        
+
         <form action="/login" method="POST" class="space-y-4">
             <div>
-                <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Usuario</label>
-                <input type="text" name="usuario" required class="w-full border-2 border-slate-100 rounded-xl px-4 py-2 focus:border-blue-500 outline-none transition">
+                <label class="block text-xs font-bold text-slate-500 uppercase mb-1 tracking-widest">Usuario</label>
+                <input type="text" name="usuario" required autocomplete="username"
+                       class="w-full border-2 border-slate-100 rounded-xl px-4 py-3 focus:border-charat-blue outline-none font-medium">
             </div>
             <div>
-                <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Contraseña</label>
-                <input type="password" name="password" required class="w-full border-2 border-slate-100 rounded-xl px-4 py-2 focus:border-blue-500 outline-none transition">
+                <label class="block text-xs font-bold text-slate-500 uppercase mb-1 tracking-widest">Contraseña</label>
+                <input type="password" name="password" required autocomplete="current-password"
+                       class="w-full border-2 border-slate-100 rounded-xl px-4 py-3 focus:border-charat-blue outline-none font-medium">
             </div>
-            
             {% if error %}
-            <p class="text-red-500 text-xs font-bold text-center">{{ error }}</p>
+            <div class="bg-red-50 border border-red-100 text-red-600 text-xs font-bold text-center rounded-xl py-3 px-4">
+                <i class="fas fa-circle-xmark mr-1"></i>{{ error }}
+            </div>
             {% endif %}
-
-            <button type="submit" class="w-full bg-blue-600 text-white font-bold py-3 rounded-xl hover:bg-blue-700 shadow-lg shadow-blue-200 transition">
-                Entrar al Sistema
+            <button type="submit" class="w-full bg-charat-green text-white font-bold py-3.5 rounded-xl hover:bg-charat-green-dark shadow-lg uppercase tracking-widest text-xs">
+                Entrar al sistema
             </button>
         </form>
 
-        <!-- Botón de retorno para el ciudadano -->
         <div class="mt-6 pt-6 border-t border-slate-100 text-center">
-            <a href="/" class="text-slate-400 hover:text-blue-600 text-xs font-bold uppercase tracking-widest transition flex items-center justify-center gap-2">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="10 19l-7-7m0 0l7-7m-7 7h18" />
-                </svg>
-                Volver al Reporte Ciudadano
+            <a href="/" class="text-slate-400 hover:text-charat-green text-xs font-bold uppercase tracking-widest inline-flex items-center gap-2">
+                <i class="fas fa-arrow-left"></i> Volver al portal ciudadano
             </a>
         </div>
     </div>
