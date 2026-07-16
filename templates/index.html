@@ -30,6 +30,7 @@
             </div>
 
             <form id="formReporte" action="/enviar" method="POST" enctype="multipart/form-data" class="p-8 space-y-8">
+                {% include 'partials/csrf.html' %}
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
                         <label class="block text-xs font-black text-slate-500 uppercase tracking-widest mb-2">DNI</label>

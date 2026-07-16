@@ -1,13 +1,16 @@
 from flask import Flask, render_template, request, redirect, url_for, session, flash, send_file
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
+from flask_wtf.csrf import CSRFProtect, CSRFError
 import firebase_admin
-from firebase_admin import credentials, firestore, storage 
-from PIL import Image 
+from firebase_admin import credentials, firestore, storage
+from PIL import Image
 import io
 import calendar
 from datetime import datetime, timedelta
 from collections import Counter
 import re
-import uuid 
+import uuid
 import os
 import json
 import base64
@@ -64,7 +67,32 @@ db = firestore.client()
 bucket = storage.bucket() 
 
 app = Flask(__name__)
-app.secret_key = os.environ.get("FLASK_SECRET_KEY", "muni_charat_2026_secure_key")
+
+_secret = os.environ.get("FLASK_SECRET_KEY")
+if not _secret:
+    if os.environ.get("RENDER"):
+        raise RuntimeError(
+            "FLASK_SECRET_KEY es obligatoria en producción. "
+            "Genérala en Render → Environment → FLASK_SECRET_KEY."
+        )
+    _secret = "dev-only-inseguro-local"
+    print("ADVERTENCIA: FLASK_SECRET_KEY no definida; usando clave local de desarrollo.")
+app.secret_key = _secret
+app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024  # 16 MB
+app.config["SESSION_COOKIE_HTTPONLY"] = True
+app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+app.config["SESSION_COOKIE_SECURE"] = bool(os.environ.get("RENDER"))
+app.config["WTF_CSRF_TIME_LIMIT"] = 8 * 60 * 60
+app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(hours=8)
+
+csrf = CSRFProtect(app)
+limiter = Limiter(
+    get_remote_address,
+    app=app,
+    default_limits=[],
+    storage_uri="memory://",
+)
+
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 LOGO_PATH = os.path.join(BASE_DIR, "static", "img", "logo_charat.png")
 
@@ -289,7 +317,10 @@ def _format_fecha(val):
 
 def _obtener_reportes():
     reportes = [doc.to_dict() | {"id": doc.id} for doc in db.collection("incidencias").stream()]
-    reportes.sort(key=lambda x: x["gestion"].get("fecha_registro", datetime.now()), reverse=True)
+    reportes.sort(
+        key=lambda x: _fecha_valor(x.get("gestion", {}).get("fecha_registro")) or datetime.min,
+        reverse=True,
+    )
     return reportes
 
 
@@ -819,6 +850,7 @@ def index():
     return render_template('index.html', sectores=_listar_sectores(), categorias=_listar_categorias())
 
 @app.route('/enviar', methods=['POST'])
+@limiter.limit("10 per hour")
 def enviar():
     try:
         dni = request.form.get('dni')
@@ -944,12 +976,16 @@ def guardar_config_correo():
 ESTADOS_INCIDENCIA = frozenset({"Pendiente", "En Proceso", "Atendido"})
 ROLES_USUARIO = frozenset({"admin", "operador"})
 
-@app.route('/cambiar_estado/<incidencia_id>/<path:estado>')
-def cambiar_estado(incidencia_id, estado):
-    if not session.get('logged_in'): return redirect(url_for('login'))
-    if estado not in ESTADOS_INCIDENCIA: return "Estado no válido", 400
+@app.route('/cambiar_estado/<incidencia_id>', methods=['POST'])
+def cambiar_estado(incidencia_id):
+    if not session.get('logged_in'):
+        return redirect(url_for('login'))
+    estado = (request.form.get('estado') or '').strip()
+    if estado not in ESTADOS_INCIDENCIA:
+        return _admin_redirect("Estado no válido.", "error")
     ref = db.collection('incidencias').document(incidencia_id)
-    if not ref.get().exists: return "Incidencia no encontrada", 404
+    if not ref.get().exists:
+        return _admin_redirect("Incidencia no encontrada.", "error")
     _registrar_historial(ref, estado, session.get('user', 'Operador'))
     return _admin_redirect(f"Incidencia marcada como «{estado}».")
 
@@ -958,6 +994,8 @@ def agregar_comentario(incidencia_id):
     if not session.get('logged_in'): return redirect(url_for('login'))
     texto = (request.form.get('comentario') or '').strip()
     if not texto: return _admin_redirect("Escriba un comentario.", "warning")
+    if len(texto) > 1000:
+        return _admin_redirect("El comentario es demasiado largo.", "warning")
     ref = db.collection('incidencias').document(incidencia_id)
     if not ref.get().exists: return _admin_redirect("Incidencia no encontrada.", "error")
     ref.update({
@@ -998,7 +1036,7 @@ def agregar_sector():
     })
     return _admin_redirect(f"Sector «{nombre}» registrado correctamente.")
 
-@app.route('/eliminar_sector/<sector_id>')
+@app.route('/eliminar_sector/<sector_id>', methods=['POST'])
 def eliminar_sector(sector_id):
     if not session.get('logged_in') or session.get('rol') != 'admin': return "No autorizado", 403
     db.collection('sectores').document(sector_id).delete()
@@ -1015,7 +1053,7 @@ def agregar_categoria():
     })
     return _admin_redirect(f"Categoría «{nombre}» registrada correctamente.")
 
-@app.route('/eliminar_categoria/<categoria_id>')
+@app.route('/eliminar_categoria/<categoria_id>', methods=['POST'])
 def eliminar_categoria(categoria_id):
     if not session.get('logged_in') or session.get('rol') != 'admin': return "No autorizado", 403
     db.collection('categorias').document(categoria_id).delete()
@@ -1028,6 +1066,8 @@ def crear_usuario():
     password = request.form.get('nueva_password') or ''
     rol = request.form.get('rol', 'operador')
     if not usuario or not password: return _admin_redirect("Complete usuario y contraseña.", "warning")
+    if len(password) < 6:
+        return _admin_redirect("La contraseña debe tener al menos 6 caracteres.", "warning")
     if rol not in ROLES_USUARIO: rol = 'operador'
     existente = db.collection('usuarios').where('usuario', '==', usuario).limit(1).get()
     if existente: return _admin_redirect("Ese usuario ya existe.", "warning")
@@ -1039,7 +1079,7 @@ def crear_usuario():
     })
     return _admin_redirect(f"Usuario «{usuario}» creado correctamente.")
 
-@app.route('/eliminar_usuario/<usuario_id>')
+@app.route('/eliminar_usuario/<usuario_id>', methods=['POST'])
 def eliminar_usuario(usuario_id):
     if not session.get('logged_in') or session.get('rol') != 'admin': return "No autorizado", 403
     ref = db.collection('usuarios').document(usuario_id)
@@ -1050,6 +1090,7 @@ def eliminar_usuario(usuario_id):
     return _admin_redirect("Usuario eliminado correctamente.")
 
 @app.route('/login', methods=['GET', 'POST'])
+@limiter.limit("5 per minute", methods=["POST"])
 def login():
     if request.method == 'POST':
         u, p = request.form.get('usuario'), request.form.get('password')
@@ -1060,15 +1101,46 @@ def login():
             if _verificar_password(data.get('password', ''), p):
                 if not _password_hasheada(data.get('password', '')):
                     doc.reference.update({'password': generate_password_hash(p)})
+                session.clear()
                 session.update({'logged_in': True, 'user': data['usuario'], 'rol': data.get('rol', 'operador')})
+                session.permanent = True
                 return redirect(url_for('admin'))
         return render_template('login.html', error="Credenciales incorrectas")
     return render_template('login.html')
 
-@app.route('/logout')
+@app.route('/logout', methods=['POST'])
 def logout():
     session.clear()
     return redirect(url_for('login'))
+
+@app.errorhandler(CSRFError)
+def error_csrf(_e):
+    flash("Sesión expirada o formulario inválido. Vuelva a intentar.", "error")
+    destino = request.referrer or url_for("index")
+    return redirect(destino)
+
+@app.errorhandler(404)
+def pagina_no_encontrada(_e):
+    return render_template("error.html", codigo=404, mensaje="Página no encontrada"), 404
+
+@app.errorhandler(413)
+def archivo_demasiado_grande(_e):
+    flash("El archivo es demasiado grande. Máximo 16 MB por envío.", "error")
+    return redirect(url_for("index"))
+
+@app.errorhandler(429)
+def demasiadas_peticiones(_e):
+    if request.path.startswith("/login"):
+        return render_template(
+            "login.html",
+            error="Demasiados intentos. Espere un minuto e intente de nuevo.",
+        ), 429
+    flash("Demasiadas solicitudes. Intente más tarde.", "error")
+    return redirect(url_for("index")), 429
+
+@app.errorhandler(500)
+def error_interno(_e):
+    return render_template("error.html", codigo=500, mensaje="Error interno del servidor"), 500
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)

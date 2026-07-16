@@ -88,9 +88,12 @@
                     {{ session.rol }}
                 </span>
             </div>
-            <a href="/logout" class="flex items-center justify-center gap-2 w-full bg-red-500/15 text-red-400 hover:bg-red-500 hover:text-white py-3 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all border border-red-500/20">
-                <i class="fas fa-sign-out-alt"></i> Cerrar Sesión
-            </a>
+            <form action="/logout" method="POST">
+                {% include 'partials/csrf.html' %}
+                <button type="submit" class="flex items-center justify-center gap-2 w-full bg-red-500/15 text-red-400 hover:bg-red-500 hover:text-white py-3 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all border border-red-500/20">
+                    <i class="fas fa-sign-out-alt"></i> Cerrar Sesión
+                </button>
+            </form>
         </div>
     </aside>
 
@@ -232,18 +235,27 @@
                                         {{ r.gestion.estado }}
                                     </span>
                                     <div class="flex bg-slate-100 p-1 rounded-xl gap-1 shadow-inner">
-                                        <a href="/cambiar_estado/{{ r.id }}/En Proceso" class="group relative p-2 text-slate-400 hover:text-charat-blue hover:bg-white rounded-lg transition-all">
-                                            <i class="fas fa-spinner fa-xs group-hover:spin-slow"></i>
-                                            <span class="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-slate-800 text-white text-[8px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">Procesar</span>
-                                        </a>
-                                        <a href="/cambiar_estado/{{ r.id }}/Atendido" class="group relative p-2 text-slate-400 hover:text-green-600 hover:bg-white rounded-lg transition-all">
-                                            <i class="fas fa-check-double fa-xs"></i>
-                                            <span class="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-slate-800 text-white text-[8px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">Finalizar</span>
-                                        </a>
-                                        <a href="/cambiar_estado/{{ r.id }}/Pendiente" class="group relative p-2 text-slate-400 hover:text-yellow-600 hover:bg-white rounded-lg transition-all">
-                                            <i class="fas fa-undo fa-xs"></i>
-                                            <span class="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-slate-800 text-white text-[8px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">Revertir</span>
-                                        </a>
+                                        <form action="/cambiar_estado/{{ r.id }}" method="POST" class="inline">
+                                            {% include 'partials/csrf.html' %}
+                                            <input type="hidden" name="estado" value="En Proceso">
+                                            <button type="submit" class="group relative p-2 text-slate-400 hover:text-charat-blue hover:bg-white rounded-lg transition-all" title="Procesar">
+                                                <i class="fas fa-spinner fa-xs group-hover:spin-slow"></i>
+                                            </button>
+                                        </form>
+                                        <form action="/cambiar_estado/{{ r.id }}" method="POST" class="inline">
+                                            {% include 'partials/csrf.html' %}
+                                            <input type="hidden" name="estado" value="Atendido">
+                                            <button type="submit" class="group relative p-2 text-slate-400 hover:text-green-600 hover:bg-white rounded-lg transition-all" title="Finalizar">
+                                                <i class="fas fa-check-double fa-xs"></i>
+                                            </button>
+                                        </form>
+                                        <form action="/cambiar_estado/{{ r.id }}" method="POST" class="inline">
+                                            {% include 'partials/csrf.html' %}
+                                            <input type="hidden" name="estado" value="Pendiente">
+                                            <button type="submit" class="group relative p-2 text-slate-400 hover:text-yellow-600 hover:bg-white rounded-lg transition-all" title="Revertir">
+                                                <i class="fas fa-undo fa-xs"></i>
+                                            </button>
+                                        </form>
                                     </div>
                                 </div>
                             </td>
@@ -398,6 +410,7 @@
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 <div class="lg:col-span-2 bg-white p-8 rounded-[2.5rem] shadow-xl border border-slate-200">
                     <form action="/agregar_sector" method="POST" class="space-y-6">
+                        {% include 'partials/csrf.html' %}
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div>
                                 <label class="block text-[10px] font-black text-slate-400 uppercase mb-2">Nombre del Lugar</label>
@@ -424,7 +437,10 @@
                                 <p class="text-sm font-bold">{{ s.nombre }}</p>
                                 <p class="text-[9px] text-slate-500 uppercase font-black">{{ s.tipo }}</p>
                             </div>
-                            <a href="/eliminar_sector/{{ s.id }}" onclick="return confirm('¿Eliminar este sector?')" class="text-slate-600 hover:text-red-500 transition-colors"><i class="fas fa-trash-alt fa-xs"></i></a>
+                            <form action="/eliminar_sector/{{ s.id }}" method="POST" class="inline" onsubmit="return confirm('¿Eliminar este sector?')">
+                                {% include 'partials/csrf.html' %}
+                                <button type="submit" class="text-slate-600 hover:text-red-500 transition-colors"><i class="fas fa-trash-alt fa-xs"></i></button>
+                            </form>
                         </div>
                         {% else %}
                         <p class="text-sm text-slate-500 italic">No hay sectores registrados.</p>
@@ -440,6 +456,7 @@
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 <div class="lg:col-span-2 bg-white p-8 rounded-[2.5rem] shadow-xl border border-slate-200">
                     <form action="/agregar_categoria" method="POST" class="space-y-6">
+                        {% include 'partials/csrf.html' %}
                         <div>
                             <label class="block text-[10px] font-black text-slate-400 uppercase mb-2">Nombre de la Categoría</label>
                             <input type="text" name="nueva_categoria" required placeholder="Ej. Agua y Saneamiento" class="w-full px-5 py-3 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-charat-blue outline-none transition font-bold text-sm">
@@ -453,7 +470,10 @@
                         {% for c in categorias %}
                         <div class="flex items-center justify-between border-b border-slate-800 pb-2">
                             <p class="text-sm font-bold"><i class="fas {{ c.icono }} text-charat-blue-light mr-2"></i>{{ c.nombre }}</p>
-                            <a href="/eliminar_categoria/{{ c.id }}" onclick="return confirm('¿Eliminar esta categoría?')" class="text-slate-600 hover:text-red-500 transition-colors"><i class="fas fa-trash-alt fa-xs"></i></a>
+                            <form action="/eliminar_categoria/{{ c.id }}" method="POST" class="inline" onsubmit="return confirm('¿Eliminar esta categoría?')">
+                                {% include 'partials/csrf.html' %}
+                                <button type="submit" class="text-slate-600 hover:text-red-500 transition-colors"><i class="fas fa-trash-alt fa-xs"></i></button>
+                            </form>
                         </div>
                         {% else %}
                         <p class="text-sm text-slate-500 italic">No hay categorías registradas.</p>
@@ -468,6 +488,7 @@
             <h2 class="text-4xl font-black text-slate-800 tracking-tight mb-8">Usuarios <span class="text-charat-blue">Municipales</span></h2>
             <div class="bg-slate-900 rounded-[2.5rem] p-10 text-white shadow-2xl mb-8">
                 <form action="/crear_usuario" method="POST" class="grid grid-cols-1 md:grid-cols-4 gap-4 bg-slate-800 p-6 rounded-3xl border border-slate-700">
+                    {% include 'partials/csrf.html' %}
                     <input type="text" name="nuevo_usuario" placeholder="Usuario" required class="bg-slate-700 border-none rounded-xl px-5 py-3 text-sm outline-none text-white">
                     <input type="password" name="nueva_password" placeholder="Contraseña" required class="bg-slate-700 border-none rounded-xl px-5 py-3 text-sm outline-none text-white">
                     <select name="rol" class="bg-slate-700 border-none rounded-xl px-5 py-3 text-sm outline-none text-white appearance-none">
@@ -500,11 +521,13 @@
                             <td class="px-8 py-4 text-green-500 text-[10px] font-bold uppercase tracking-widest">Activo</td>
                             <td class="px-8 py-4 text-center">
                                 {% if u.usuario != session.user %}
-                                <a href="/eliminar_usuario/{{ u.id }}" 
-                                   onclick="return confirm('¿Seguro que deseas eliminar esta cuenta permanentemente?')"
-                                   class="text-slate-400 hover:text-red-500 transition-all p-2">
-                                    <i class="fas fa-trash-alt"></i>
-                                </a>
+                                <form action="/eliminar_usuario/{{ u.id }}" method="POST" class="inline"
+                                      onsubmit="return confirm('¿Seguro que deseas eliminar esta cuenta permanentemente?')">
+                                    {% include 'partials/csrf.html' %}
+                                    <button type="submit" class="text-slate-400 hover:text-red-500 transition-all p-2">
+                                        <i class="fas fa-trash-alt"></i>
+                                    </button>
+                                </form>
                                 {% else %}
                                 <span class="text-[9px] text-slate-300 italic">Tu cuenta</span>
                                 {% endif %}
@@ -522,6 +545,7 @@
             <div class="max-w-2xl bg-white p-8 rounded-[2.5rem] shadow-xl border border-slate-200">
                 <h3 class="text-sm font-black uppercase tracking-widest text-slate-400 mb-6">Notificaciones Automáticas (Gmail API)</h3>
                 <form action="/guardar_config_correo" method="POST" class="space-y-6">
+                    {% include 'partials/csrf.html' %}
                     <div>
                         <label class="block text-[10px] font-black text-slate-500 uppercase mb-2">Correo de Recepción de Alertas</label>
                         <input type="email" name="correo_receptor" required value="{{ config.correo_receptor if config else '' }}" placeholder="admin@gmail.com" 
@@ -562,6 +586,7 @@
                 </div>
 
                 <form action="/limpiar_datos_prueba" method="POST" class="space-y-4" onsubmit="return confirmarLimpieza()">
+                    {% include 'partials/csrf.html' %}
                     <label class="flex items-start gap-3 cursor-pointer bg-white rounded-2xl border border-red-100 px-4 py-3">
                         <input type="checkbox" name="acepto" id="aceptoLimpieza" class="mt-1 accent-red-600">
                         <span class="text-xs text-red-800 leading-relaxed">
@@ -627,6 +652,7 @@
                     {% endfor %}
                 </div>
                 <form action="/agregar_comentario/{{ r.id }}" method="POST" class="flex gap-2">
+                    {% include 'partials/csrf.html' %}
                     <input type="text" name="comentario" required placeholder="Agregar nota interna..." class="flex-1 text-sm border-2 border-slate-100 rounded-xl px-3 py-2 outline-none focus:border-charat-blue">
                     <button type="submit" class="bg-charat-green text-white px-4 py-2 rounded-xl text-xs font-black uppercase">Guardar</button>
                 </form>
@@ -733,8 +759,9 @@
                 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap' }).addTo(mapaInstancia);
                 const colores = { 'Pendiente': '#eab308', 'En Proceso': '#2563eb', 'Atendido': '#16a34a' };
                 MAPA_PUNTOS.forEach(p => {
+                    const esc = (s) => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
                     L.circleMarker([p.lat, p.lng], { radius: 8, color: colores[p.estado] || '#64748b', fillOpacity: 0.8 })
-                        .bindPopup('<b>' + p.folio + '</b><br>' + p.categoria + '<br>' + p.caserio + '<br><i>' + p.estado + '</i>')
+                        .bindPopup('<b>' + esc(p.folio) + '</b><br>' + esc(p.categoria) + '<br>' + esc(p.caserio) + '<br><i>' + esc(p.estado) + '</i>')
                         .addTo(mapaInstancia);
                 });
                 if (MAPA_PUNTOS.length) {
